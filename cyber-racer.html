@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Cyber Racer – Cyber Security and Advanced Crimes</title>
+<style>
+*{box-sizing:border-box;margin:0}
+html,body{height:100%;overflow:hidden;background:#000;font-family:-apple-system,"Segoe UI",Roboto,Arial,sans-serif;color:#fff}
+canvas{position:fixed;inset:0;touch-action:none}
+#hud{position:fixed;top:0;left:0;right:0;padding:10px;pointer-events:none;display:none}
+.chips{display:flex;gap:8px;justify-content:center;margin-bottom:8px}
+.chip{background:rgba(10,14,30,.6);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.2);border-radius:20px;padding:5px 12px;font-size:13px;font-weight:700}
+#qp{max-width:640px;margin:0 auto;background:rgba(10,14,30,.7);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.22);border-radius:16px;padding:12px 14px}
+#qp h2{font-size:clamp(15px,2.6vw,20px);margin-bottom:8px;line-height:1.3}
+.o{display:flex;align-items:center;gap:8px;font-size:clamp(13px,2.2vw,16px);margin:5px 0}
+.o b{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;flex:none;color:#111}
+.steer{position:fixed;bottom:22px;width:92px;height:92px;border-radius:50%;border:2px solid rgba(255,255,255,.45);background:rgba(255,255,255,.14);backdrop-filter:blur(6px);font-size:36px;color:#fff;display:none;touch-action:none}
+#L{left:18px}#R{right:18px}
+#ov{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:18px;background:rgba(4,6,16,.55);backdrop-filter:blur(3px)}
+#ov.h{display:none}
+.card{background:linear-gradient(160deg,#18234a,#0e1430);border:1px solid rgba(255,255,255,.25);border-radius:22px;padding:26px;max-width:430px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.6)}
+.card h1{font-size:2rem;letter-spacing:-.02em}.card h2{font-size:1.3rem;margin:6px 0}
+.card p{color:#b8c6dc;margin:8px 0;font-size:.95rem;line-height:1.45}
+.big{font-size:3.4rem;margin:4px 0}
+.btn{display:block;width:100%;border:0;border-radius:14px;padding:14px;margin-top:12px;font-size:1.05rem;font-weight:800;cursor:pointer;background:linear-gradient(90deg,#5eead4,#818cf8);color:#08122a}
+.btn.alt{background:linear-gradient(90deg,#fbbf24,#fb7185);color:#2a1200}
+.btn.g{background:transparent;border:1px solid rgba(255,255,255,.3);color:#fff}
+.row{display:flex;gap:10px;margin-top:12px}.row .btn{margin:0}.row .btn.sel{outline:3px solid #5eead4}
+input{width:100%;padding:12px;border-radius:12px;border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.08);color:#fff;text-align:center;font-size:1rem;margin-top:10px}
+.stars{font-size:2.4rem;letter-spacing:6px;color:#fbbf24}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="hud"><div class="chips"><span class="chip" id="lv"></span><span class="chip" id="qn"></span><span class="chip" id="sc"></span></div><div id="qp"><h2 id="qt"></h2><div id="qo"></div></div></div>
+<button class="steer" id="L">◀</button><button class="steer" id="R">▶</button>
+<div id="ov"><div class="card" id="card"></div></div>
+
+<script>
+const $=id=>document.getElementById(id), cv=$('c'), ctx=cv.getContext('2d');
+let W,H,RH,cx,hz,by;
+function resize(){const d=Math.min(2,devicePixelRatio||1);W=innerWidth;H=innerHeight;cv.width=W*d;cv.height=H*d;ctx.setTransform(d,0,0,d,0,0);RH=Math.min(W*.52,H*.62);cx=W/2;hz=H*.4;by=H*.86;}
+addEventListener('resize',resize);resize();
+
+const LC=["#ff5c7a","#3ea6ff","#34d399"],LN=["A","B","C"];
+const TH=[
+{n:"Password Peak",e:"🔑",t:"Passwords",sky:["#3aa8ff","#c4ebff"],gr:["#3f9b4a","#358a40"],rd:["#3b4252","#353b49"],acc:"#ffd23f",far:["#6bb98a","#469a6c"],type:"hills",sun:"#fff2a8"},
+{n:"Phishing Pier",e:"🎣",t:"Spotting scams",sky:["#ff6b6b","#ffd89b"],gr:["#7a4b3a","#6d4232"],rd:["#40384a","#3a3243"],acc:"#ffffff",far:["#a85c6c","#7c405a"],type:"hills",sun:"#fff0c2"},
+{n:"Malware Metro",e:"🧟",t:"Viruses & downloads",sky:["#0a0f2c","#4a2a7a"],gr:["#14142e","#101028"],rd:["#23233a","#1e1e33"],acc:"#00f0ff",far:["#1b1e4a","#2c2874"],type:"city",night:1,sun:"#e8e0ff"},
+{n:"Privacy Plains",e:"📍",t:"Privacy & sharing",sky:["#f77fbe","#ffe0b2"],gr:["#d9a566","#c8935a"],rd:["#4a3f45","#443940"],acc:"#ff4d8d",far:["#cc7c70","#a85a66"],type:"hills",sun:"#fff5d6"},
+{n:"Galaxy Highway",e:"🛰️",t:"Wi‑Fi, 2FA & tricks",sky:["#04030f","#1b0a3f"],gr:["#0a0820","#080618"],rd:["#1a1a33","#15152b"],acc:"#b388ff",far:["#20104a","#2e1670"],type:"space",night:1,sun:"#ffd6ff"}];
+// [question,[correct,wrong,wrong],why]
+const Q=[[
+["Which password is the strongest?",["maple-rocket-sings-42","Summer2024","qwerty123"],"Long, random phrases are far harder to guess than short, predictable ones."],
+["You use one password for every app. What's the risk?",["One leak can open ALL your accounts","No risk if it's strong","Only games get hacked"],"Hackers try leaked passwords everywhere. Use a different password for each account."],
+["Who should know your passwords?",["Only you (and your parent if you're young)","Your best friend","Anyone who asks nicely"],"Passwords are secrets — even close friends can accidentally leak them."],
+["Best place to store many passwords?",["A trusted password manager","A sticky note on the laptop","A public shared doc"],"A password manager creates and safely stores strong, unique passwords."]],
+[
+["A message says: 'Account locks in 10 minutes! Click now!'",["Don't click — open the real app/site yourself","Click quickly","Reply with your password"],"Fake urgency is the classic phishing trick. Go to the real site directly."],
+["Which link looks suspicious?",["faceb00k-login.net","facebook.com","m.facebook.com"],"Look for swapped letters and odd extras. Scammers copy names with tiny changes."],
+["A stranger DMs: 'You won a phone! Send your address.'",["Ignore and block","Send the address","Share it with friends"],"'Prizes' from strangers are bait to steal your details."],
+["An email from your 'bank' has spelling mistakes and a weird sender.",["It's probably phishing","It's totally safe","It's a free gift"],"Real companies proofread. Odd senders and typos are red flags."]],
+[
+["A friend sends free_robux.exe. You…",["Don't open it; ask if they really sent it","Run it at once","Rename it, then run it"],"Hacked accounts spread malware. Never run unexpected files."],
+["Where should you download apps from?",["Official app stores","Random pop-up ads","Links from strangers"],"Official stores check apps for viruses. Random links often hide malware."],
+["A pop-up screams: 'Virus found! Call this number!'",["Close it — it's a scam","Call immediately","Click Install"],"Real warnings never ask you to phone a stranger."],
+["Best way to stay safe from malware?",["Keep updates on and use protection","Never update","Turn protection off for speed"],"Updates fix the holes that malware sneaks through."]],
+[
+["Which is safe to post publicly?",["A photo of your pet","Your home address","Your school timetable"],"Never post where you live, study or hang out."],
+["Best way to share holiday photos?",["Post after you're back home","Live location all week","Share your address for parcels"],"Live posts tell everyone your home is empty."],
+["Your social profile should be…",["Private, with only people you know","Public to everyone","Public with your phone number"],"Private profiles keep strangers out."],
+["A game wants your birth date, address and ID number.",["Say no — give the minimum info","Fill in everything","Use a parent's card"],"Share as little as possible. Ask a trusted adult first."]],
+[
+["What does 2FA do?",["A stolen password alone isn't enough","Types your password twice","Makes Wi‑Fi faster"],"2FA needs a second proof, like a code on your phone."],
+["On free café Wi‑Fi, what's the safest choice?",["Skip banking; use mobile data","Enter card numbers","Share passwords"],"Open Wi‑Fi can be snooped. Save sensitive stuff for trusted networks."],
+["Caller: 'I'm IT support, tell me your password.'",["Refuse and verify with the real IT team","Give it","Give half of it"],"Real IT never asks for your password."],
+["You get a 2FA code you never requested.",["Someone may know your password — change it","Ignore it forever","Give the code to support"],"An unrequested code means someone is trying to log in as you."]]];
+
+const S={mode:"menu",lvl:0,qi:0,lc:0,tot:0,st:0,name:"",veh:"bike",target:0,px:0,g:null,scroll:0,spd:4,shake:0,t:0,lampZ:[],parts:[],bl:[],stars:[]};
+for(let i=0;i<18;i++)S.lampZ.push(i*4);
+for(let i=0;i<110;i++)S.stars.push([Math.random(),Math.random()*.42,Math.random()*1.6+.3,Math.random()*6]);
+const th=()=>TH[S.lvl];
+function genCity(){S.bl=[];for(let x=0,i=0;x<2600;i++){const w=30+Math.random()*50;S.bl.push([x,w,50+Math.random()*130,Math.random()]);x+=w+Math.random()*8}}
+
+/* ---------- helpers ---------- */
+function rr(x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath()}
+const P=z=>{const s=1/(1+z*.09);return{s,y:hz+(by-hz)*s}};
+const laneX=(i,s)=>cx+i*RH*.667*s;
+const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[a[i],a[j]]=[a[j],a[i]]}return a};
+
+/* ---------- drawing ---------- */
+function drawSky(T){
+  let g=ctx.createLinearGradient(0,0,0,hz);g.addColorStop(0,T.sky[0]);g.addColorStop(1,T.sky[1]);ctx.fillStyle=g;ctx.fillRect(0,0,W,hz+2);
+  if(T.type==="space"){S.stars.forEach(s=>{ctx.globalAlpha=.5+.5*Math.sin(S.t*2+s[3]);ctx.fillStyle="#fff";ctx.fillRect(s[0]*W,s[1]*H,s[2],s[2])});ctx.globalAlpha=1;
+    const px=W*.72,py=hz*.55,r=H*.11;g=ctx.createRadialGradient(px-r*.3,py-r*.3,r*.1,px,py,r);g.addColorStop(0,"#e0b3ff");g.addColorStop(1,"#4a1f8f");ctx.fillStyle=g;ctx.beginPath();ctx.arc(px,py,r,0,7);ctx.fill();
+    ctx.strokeStyle="rgba(255,214,255,.55)";ctx.lineWidth=5;ctx.beginPath();ctx.ellipse(px,py,r*1.7,r*.35,-.3,0,7);ctx.stroke();return}
+  const sx=W*.72,sy=hz*.62,r=H*.09;g=ctx.createRadialGradient(sx,sy,r*.2,sx,sy,r*3);g.addColorStop(0,T.sun);g.addColorStop(.3,T.sun+"aa");g.addColorStop(1,"transparent");ctx.fillStyle=g;ctx.fillRect(sx-r*3,sy-r*3,r*6,r*6);
+  ctx.fillStyle=T.sun;ctx.beginPath();ctx.arc(sx,sy,r,0,7);ctx.fill();
+  const off=S.px*26+S.scroll*1.2;
+  if(T.type==="city"){[[.55,0],[1,60]].forEach(([k,o],li)=>{S.bl.forEach(b=>{let x=((b[0]-off*(li?1.6:.8)-o)%2600+2600)%2600-200;const h=b[2]*(H/700)*(li?1:.7);ctx.fillStyle=T.far[li];ctx.fillRect(x,hz-h,b[1],h+2);
+    if(li){ctx.fillStyle="rgba(255,230,120,.75)";for(let wy=hz-h+8;wy<hz-6;wy+=14)for(let wx=x+5;wx<x+b[1]-6;wx+=11)if(((wx*7+wy*3)|0)%5<2)ctx.fillRect(wx,wy,4,6)}})});}
+  else[[.35,T.far[0],.004,.7],[.22,T.far[1],.007,1]].forEach(([a,c,f,m])=>{ctx.fillStyle=c;ctx.beginPath();ctx.moveTo(0,hz+2);for(let x=0;x<=W;x+=8){const v=Math.sin((x+off*m*3)*f)*.5+Math.sin((x+off*m*3)*f*2.7)*.25+.9;ctx.lineTo(x,hz-v*H*a*.32)}ctx.lineTo(W,hz+2);ctx.fill()});
+}
+function drawRoad(T){
+  const seg=1,fr=S.scroll%1,base=Math.floor(S.scroll);
+  for(let k=-6;k<72;k++){
+    const z0=k*seg-fr,z1=z0+seg,a=P(z0),b=P(z1);if(b.y>=a.y)continue;const odd=(k+base)&1;
+    ctx.fillStyle=T.gr[odd];ctx.fillRect(0,b.y,W,a.y-b.y+1);
+    quad(cx-RH*1.09*b.s,b.y,cx+RH*1.09*b.s,b.y,cx+RH*1.09*a.s,a.y,cx-RH*1.09*a.s,a.y,odd?"#ff3b5c":"#fff");
+    quad(cx-RH*b.s,b.y,cx+RH*b.s,b.y,cx+RH*a.s,a.y,cx-RH*a.s,a.y,T.rd[odd]);
+    if(odd)[-1,1].forEach(d=>{const w=.02*RH;quad(cx+d*RH/3*b.s-w*b.s,b.y,cx+d*RH/3*b.s+w*b.s,b.y,cx+d*RH/3*a.s+w*a.s,a.y,cx+d*RH/3*a.s-w*a.s,a.y,"rgba(255,255,255,.75)")});
+  }
+  let g=ctx.createLinearGradient(0,hz,0,hz+H*.14);g.addColorStop(0,T.sky[1]);g.addColorStop(1,"transparent");ctx.fillStyle=g;ctx.fillRect(0,hz,W,H*.14);
+}
+function quad(a,b,c,d,e,f,g,h,col){ctx.fillStyle=col;ctx.beginPath();ctx.moveTo(a,b);ctx.lineTo(c,d);ctx.lineTo(e,f);ctx.lineTo(g,h);ctx.fill()}
+function drawLamp(z,side,T){const p=P(z);if(p.s<.04||p.s>1.6)return;const x=cx+side*RH*1.22*p.s,h=RH*.85*p.s;
+  ctx.strokeStyle="#20242e";ctx.lineWidth=Math.max(2,7*p.s);ctx.beginPath();ctx.moveTo(x,p.y);ctx.lineTo(x,p.y-h);ctx.lineTo(x-side*h*.25,p.y-h-h*.05);ctx.stroke();
+  ctx.save();ctx.shadowColor=T.acc;ctx.shadowBlur=26*p.s;ctx.fillStyle=T.acc;ctx.beginPath();ctx.arc(x-side*h*.27,p.y-h-h*.04,Math.max(2,9*p.s),0,7);ctx.fill();ctx.restore()}
+function drawGate(g){
+  const p=P(g.z),s=p.s;if(s<.05)return;const lw=RH*.667*s,bw=lw*.86,bh=lw*.72,top=p.y-bh*1.6;
+  ctx.fillStyle="#1b1f2c";[-1,1].forEach(d=>ctx.fillRect(cx+d*RH*1.03*s-4*s,top-bh*.2,8*s,p.y-top+bh*.2));
+  ctx.fillRect(cx-RH*1.06*s,top-bh*.22,RH*2.12*s,bh*.16);
+  [0,1,2].forEach(i=>{const x=cx+(i-1)*lw;ctx.save();ctx.shadowColor=LC[i];ctx.shadowBlur=28*s;
+    const gr=ctx.createLinearGradient(0,top,0,top+bh);gr.addColorStop(0,LC[i]);gr.addColorStop(1,"#111a33");ctx.fillStyle=gr;rr(x-bw/2,top,bw,bh,bh*.14);ctx.fill();ctx.restore();
+    ctx.strokeStyle="rgba(255,255,255,.7)";ctx.lineWidth=Math.max(1,3*s);rr(x-bw/2,top,bw,bh,bh*.14);ctx.stroke();
+    ctx.fillStyle="#fff";ctx.font="900 "+(bh*.62)+"px Arial";ctx.textAlign="center";ctx.textBaseline="middle";ctx.fillText(LN[i],x,top+bh*.53);
+    ctx.strokeStyle=LC[i];ctx.lineWidth=Math.max(1,2*s);ctx.beginPath();ctx.moveTo(x,top-bh*.06);ctx.lineTo(x,top);ctx.stroke()});
+}
+function drawVeh(T){
+  const u=Math.min(W,H)*.085,x=laneX(S.px,1),lean=Math.max(-.38,Math.min(.38,(S.target-S.px)*.55));
+  const lg=(x0,y0,x1,y1,st)=>{const g=ctx.createLinearGradient(x0,y0,x1,y1);st.forEach((c,i)=>g.addColorStop(i/(st.length-1),c));return g};
+  const glow=(a,b,w,h,r)=>{ctx.save();ctx.shadowColor="#ff1f3d";ctx.shadowBlur=24;ctx.fillStyle=lg(a,0,a+w,0,["#ff2a44","#ff9aa8","#ff2a44"]);rr(a,b,w,h,r);ctx.fill();ctx.restore()};
+  const tyre=(a,b,w,h)=>{ctx.fillStyle=lg(a,0,a+w,0,["#050507","#30303a","#050507"]);rr(a,b,w,h,w*.35);ctx.fill();ctx.strokeStyle="rgba(255,255,255,.14)";ctx.lineWidth=1.2;for(let k=0;k<6;k++){const yy=b+((k/6+S.scroll*.9)%1)*h;ctx.beginPath();ctx.moveTo(a+w*.12,yy);ctx.lineTo(a+w*.88,yy);ctx.stroke()}};
+  ctx.save();ctx.translate(x,by+Math.sin(S.t*24)*1.1);
+  ctx.fillStyle="rgba(0,0,0,.45)";ctx.beginPath();ctx.ellipse(0,0,u*1.5,u*.3,0,0,7);ctx.fill();
+  let g=ctx.createRadialGradient(0,u*.3,2,0,u*.3,u*1.9);g.addColorStop(0,"rgba(255,40,70,.38)");g.addColorStop(1,"transparent");ctx.fillStyle=g;ctx.beginPath();ctx.ellipse(0,u*.3,u*1.9,u*.6,0,0,7);ctx.fill();
+  ctx.rotate(lean);
+  if(S.veh==="bike"){
+    ctx.fillStyle="#4b4f5c";rr(-.5*u,-.95*u,.13*u,.75*u,.05*u);ctx.fill();rr(.37*u,-.95*u,.13*u,.75*u,.05*u);ctx.fill();
+    tyre(-.34*u,-1.1*u,.68*u,1.1*u);
+    ctx.fillStyle=lg(.3*u,0,.66*u,0,["#5b6070","#eef1f8","#656b7b"]);rr(.32*u,-1.0*u,.34*u,.85*u,.14*u);ctx.fill();ctx.fillStyle="#0a0a0e";ctx.beginPath();ctx.ellipse(.49*u,-.17*u,.12*u,.05*u,0,0,7);ctx.fill();
+    ctx.fillStyle=lg(0,-2,0,-1,["#252833","#0d0f15"]);rr(-.74*u,-2.05*u,.3*u,1.15*u,.15*u);ctx.fill();rr(.44*u,-2.05*u,.3*u,1.15*u,.15*u);ctx.fill();
+    ctx.fillStyle=lg(-.6*u,0,.6*u,0,["#0c0e13","#3d4358","#0c0e13"]);rr(-.55*u,-1.75*u,1.1*u,.9*u,.34*u);ctx.fill();
+    ctx.fillStyle=T.acc;rr(-.05*u,-1.7*u,.1*u,.72*u,.04*u);ctx.fill();
+    glow(-.3*u,-1.42*u,.6*u,.12*u,.06*u);
+    ctx.fillStyle="#f4f4f4";rr(-.26*u,-1.18*u,.52*u,.2*u,.03*u);ctx.fill();ctx.fillStyle="#111";ctx.font="700 "+(.12*u)+"px Arial";ctx.textAlign="center";ctx.textBaseline="middle";ctx.fillText("CY-5EC",0,-1.08*u);
+    ctx.fillStyle="#8b91a3";rr(-1.15*u,-2.2*u,2.3*u,.1*u,.05*u);ctx.fill();
+    ctx.strokeStyle="#6d7385";ctx.lineWidth=.05*u;[-1,1].forEach(d=>{ctx.beginPath();ctx.moveTo(d*.95*u,-2.2*u);ctx.lineTo(d*1.02*u,-2.75*u);ctx.stroke();ctx.fillStyle="#1a1d27";ctx.beginPath();ctx.ellipse(d*1.02*u,-2.8*u,.13*u,.09*u,0,0,7);ctx.fill()});
+    ctx.fillStyle=lg(-.65*u,0,.65*u,0,["#12141c","#3f465e","#12141c"]);rr(-.64*u,-2.95*u,1.28*u,1.45*u,.48*u);ctx.fill();
+    ctx.fillStyle="rgba(215,232,255,.7)";rr(-.5*u,-2.25*u,1*u,.07*u,.03*u);ctx.fill();rr(-.5*u,-2.05*u,1*u,.07*u,.03*u);ctx.fill();
+    ctx.strokeStyle="#181b26";ctx.lineWidth=.36*u;ctx.lineCap="round";[-1,1].forEach(d=>{ctx.beginPath();ctx.moveTo(d*.56*u,-2.65*u);ctx.lineTo(d*1.02*u,-2.15*u);ctx.stroke();ctx.fillStyle="#0a0a0f";ctx.beginPath();ctx.arc(d*1.03*u,-2.14*u,.17*u,0,7);ctx.fill()});
+    ctx.fillStyle="#1a1d27";rr(-.28*u,-3.05*u,.56*u,.22*u,.1*u);ctx.fill();
+    g=ctx.createRadialGradient(-.16*u,-3.5*u,.04*u,0,-3.25*u,.5*u);g.addColorStop(0,"#fff");g.addColorStop(.6,"#c3cbdd");g.addColorStop(1,"#6a7386");ctx.fillStyle=g;ctx.beginPath();ctx.arc(0,-3.25*u,.46*u,0,7);ctx.fill();
+    ctx.fillStyle=T.acc;ctx.fillRect(-.05*u,-3.7*u,.1*u,.42*u);ctx.fillStyle="rgba(255,255,255,.55)";ctx.beginPath();ctx.ellipse(-.18*u,-3.45*u,.09*u,.15*u,.4,0,7);ctx.fill();
+  }else{
+    const body=["#ff6a6f","#c8102e","#5a0714"];
+    tyre(-1.36*u,-.85*u,.48*u,.85*u);tyre(.88*u,-.85*u,.48*u,.85*u);
+    ctx.fillStyle=lg(0,-.62*u,0,0,["#1a1c23","#050507"]);rr(-1.12*u,-.65*u,2.24*u,.58*u,.14*u);ctx.fill();
+    ctx.strokeStyle="rgba(255,255,255,.1)";ctx.lineWidth=1;for(let k=-4;k<=4;k++){ctx.beginPath();ctx.moveTo(k*.22*u,-.5*u);ctx.lineTo(k*.25*u,-.1*u);ctx.stroke()}
+    [-.62,.62].forEach(a=>{ctx.fillStyle=lg(a*u-.16*u,0,a*u+.16*u,0,["#555","#f2f2f7","#666"]);ctx.beginPath();ctx.arc(a*u,-.32*u,.16*u,0,7);ctx.fill();ctx.fillStyle="#07070a";ctx.beginPath();ctx.arc(a*u,-.32*u,.1*u,0,7);ctx.fill()});
+    ctx.fillStyle=lg(0,-1.4*u,0,-.5*u,body);rr(-1.3*u,-1.42*u,2.6*u,.98*u,.34*u);ctx.fill();
+    ctx.fillStyle="rgba(255,255,255,.2)";rr(-1.15*u,-1.34*u,2.3*u,.14*u,.07*u);ctx.fill();
+    ctx.fillStyle=lg(0,-1.9*u,0,-1.3*u,[body[0],body[1]]);rr(-1.15*u,-1.9*u,2.3*u,.62*u,.26*u);ctx.fill();
+    ctx.strokeStyle="rgba(0,0,0,.35)";ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(0,-1.85*u);ctx.lineTo(0,-1.3*u);ctx.stroke();
+    ctx.fillStyle=lg(0,-2.55*u,0,-1.85*u,["#86a8dd","#1a2744","#070a14"]);rr(-.94*u,-2.55*u,1.88*u,.82*u,.38*u);ctx.fill();
+    ctx.fillStyle="rgba(255,255,255,.22)";ctx.beginPath();ctx.moveTo(-.62*u,-2.47*u);ctx.lineTo(-.15*u,-2.47*u);ctx.lineTo(-.46*u,-1.82*u);ctx.lineTo(-.82*u,-1.82*u);ctx.fill();
+    ctx.fillStyle=lg(0,-2.66*u,0,-2.46*u,[body[0],body[1]]);rr(-.86*u,-2.66*u,1.72*u,.18*u,.09*u);ctx.fill();
+    [-1,1].forEach(d=>{ctx.fillStyle=body[1];rr(d*1.1*u-.13*u,-2.02*u,.26*u,.19*u,.07*u);ctx.fill()});
+    ctx.fillStyle="#0b0c10";ctx.fillRect(-.72*u,-2.1*u,.08*u,.28*u);ctx.fillRect(.64*u,-2.1*u,.08*u,.28*u);rr(-1.28*u,-2.24*u,2.56*u,.14*u,.05*u);ctx.fill();ctx.fillRect(-1.28*u,-2.3*u,.06*u,.24*u);ctx.fillRect(1.22*u,-2.3*u,.06*u,.24*u);
+    glow(-1.16*u,-1.26*u,.86*u,.2*u,.08*u);glow(.3*u,-1.26*u,.86*u,.2*u,.08*u);glow(-.3*u,-1.2*u,.6*u,.07*u,.03*u);glow(-.3*u,-1.76*u,.6*u,.06*u,.03*u);
+    ctx.fillStyle="#f4f4f4";rr(-.33*u,-1.0*u,.66*u,.23*u,.03*u);ctx.fill();ctx.fillStyle="#111";ctx.font="700 "+(.13*u)+"px Arial";ctx.textAlign="center";ctx.textBaseline="middle";ctx.fillText("CY-5EC",0,-.88*u);
+  }
+  ctx.restore();
+}
+function drawFx(){
+  S.parts=S.parts.filter(p=>p.l>0);S.parts.forEach(p=>{ctx.globalAlpha=Math.min(1,p.l*1.5);ctx.fillStyle=p.c;ctx.fillRect(p.x,p.y,p.s,p.s*1.4);ctx.globalAlpha=1});
+  const g=ctx.createRadialGradient(cx,H*.55,Math.min(W,H)*.35,cx,H*.55,Math.max(W,H)*.8);g.addColorStop(0,"transparent");g.addColorStop(1,"rgba(0,0,10,.55)");ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+  if(S.spd>5.2){ctx.strokeStyle="rgba(255,255,255,.18)";ctx.lineWidth=2;for(let i=0;i<12;i++){const a=(i/12)*6.28+S.t,r1=Math.min(W,H)*.4,r2=r1+40+S.spd*4;ctx.beginPath();ctx.moveTo(cx+Math.cos(a)*r1*1.3,hz+Math.sin(a)*r1*.5+H*.2);ctx.lineTo(cx+Math.cos(a)*r2*1.3,hz+Math.sin(a)*r2*.5+H*.2);ctx.stroke()}}
+}
+function burst(good){const x=laneX(S.px,1),n=good?46:26;for(let i=0;i<n;i++)S.parts.push({x,y:by-30,vx:(Math.random()-.5)*380,vy:-Math.random()*420-80,l:1,s:4+Math.random()*5,c:good?["#5eead4","#ffd23f","#fff","#818cf8","#ff5c7a"][i%5]:["#ff3b5c","#ff9f43","#fff"][i%3]})}
+
+/* ---------- game loop ---------- */
+let last=0;
+function loop(ts){
+  const dt=Math.min(.05,(ts-last)/1000||0);last=ts;S.t+=dt;
+  const want=S.mode==="drive"?4.2+S.lvl*.5:S.mode==="menu"?4:2.5;S.spd+=(want-S.spd)*Math.min(1,dt*3);S.scroll+=S.spd*dt;
+  S.px+=(S.target-S.px)*Math.min(1,dt*9);
+  S.lampZ=S.lampZ.map(z=>{z-=S.spd*dt;return z<-6?z+72:z});
+  if(S.mode==="drive"&&S.g){S.g.z-=S.spd*dt;if(S.g.z<=.1)resolve()}
+  S.parts.forEach(p=>{p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=900*dt;p.l-=dt*1.1});
+  if(S.shake>0)S.shake-=dt;
+  const T=th();ctx.save();if(S.shake>0)ctx.translate((Math.random()-.5)*14*S.shake*2,(Math.random()-.5)*14*S.shake*2);
+  drawSky(T);drawRoad(T);
+  const items=S.lampZ.map((z,i)=>({z,d:i%2?1:-1,lamp:1}));if(S.g)items.push({z:S.g.z,gate:1});
+  items.sort((a,b)=>b.z-a.z).forEach(it=>it.gate?drawGate(S.g):drawLamp(it.z,it.d,T));
+  drawVeh(T);drawFx();ctx.restore();requestAnimationFrame(loop);
+}
+
+/* ---------- flow ---------- */
+function show(h){$('card').innerHTML=h;$('ov').classList.remove('h')}
+function hide(){$('ov').classList.add('h')}
+function menu(){S.mode="menu";S.g=null;$('hud').style.display="none";$('L').style.display=$('R').style.display="none";S.lvl=0;genCity();
+  show(`<div class="big">🏍️🔐🏎️</div><h1>Cyber Racer</h1><p>5 levels. Race down the highway and steer into the lane with the <b>safe answer</b> to become a Cyber Champion!</p>
+  <input id="nm" maxlength="18" placeholder="Type your name" value="${S.name}">
+  <div class="row"><button class="btn ${S.veh==='bike'?'sel':''}" id="vb" onclick="veh('bike')">🏍️ Bike</button><button class="btn ${S.veh==='car'?'sel':''}" id="vc" onclick="veh('car')">🏎️ Car</button></div>
+  <button class="btn" onclick="startGame()">Start Racing 🚀</button>`)}
+function veh(v){S.veh=v;$('vb').classList.toggle('sel',v==='bike');$('vc').classList.toggle('sel',v==='car')}
+function startGame(){S.name=($('nm').value||"Cyber Racer").trim();S.tot=0;S.st=0;S.lvl=0;intro()}
+function intro(){S.mode="pause";S.g=null;genCity();$('hud').style.display="none";$('L').style.display=$('R').style.display="none";const T=th();
+  show(`<div class="big">${T.e}</div><h2>Level ${S.lvl+1} of 5</h2><h1>${T.n}</h1><p>Topic: <b>${T.t}</b></p><p>4 gates ahead — no rush, the gates come slowly so you have time to read. Then steer ◀ ▶ (arrow keys, taps or swipe) into the lane with the right answer.</p><button class="btn" onclick="beginLevel()">Start engine 🏁</button>`)}
+function beginLevel(){S.qi=0;S.lc=0;S.target=0;hide();$('hud').style.display="block";$('L').style.display=$('R').style.display="block";nextGate()}
+function nextGate(){
+  if(S.qi>=4){levelDone();return}
+  const q=Q[S.lvl][S.qi],opts=shuffle(q[1].map((t,i)=>({t,ok:i===0})));S.g={z:75,opts,why:q[2]};S.mode="drive";
+  $('lv').textContent=th().e+" Level "+(S.lvl+1)+"/5";$('qn').textContent="Gate "+(S.qi+1)+"/4";$('sc').textContent="⭐ "+S.tot;$('qt').textContent=q[0];
+  $('qo').innerHTML=opts.map((o,i)=>`<div class="o"><b style="background:${LC[i]}">${LN[i]}</b><span>${o.t}</span></div>`).join("");
+}
+function resolve(){
+  const ch=Math.max(-1,Math.min(1,Math.round(S.target)))+1,o=S.g.opts[ch],good=o.ok;S.mode="pause";burst(good);if(!good)S.shake=.5;
+  if(good){S.lc++;S.tot++}$('sc').textContent="⭐ "+S.tot;
+  const right=S.g.opts.find(x=>x.ok).t;
+  show(`<div class="big">${good?"✅":"💥"}</div><h2>${good?"Correct! Nice driving!":"Oops! Not that lane"}</h2>${good?"":`<p>Right answer: <b>${right}</b></p>`}<p>${S.g.why}</p><button class="btn" onclick="hide();S.qi++;S.g=null;nextGate()">Keep driving ➜</button>`);
+}
+function levelDone(){
+  S.mode="pause";S.g=null;const n=S.lc>=4?3:S.lc>=3?2:1;S.st+=n;$('hud').style.display="none";$('L').style.display=$('R').style.display="none";
+  const last=S.lvl===4;
+  show(`<div class="big">${th().e}</div><h2>Level ${S.lvl+1} complete!</h2><div class="stars">${"★".repeat(n)}<span style="opacity:.25">${"★".repeat(3-n)}</span></div><p>${S.lc} of 4 correct</p><button class="btn" onclick="${last?"finale()":"S.lvl++;intro()"}">${last?"See my badge 🏆":"Next level ➜"}</button>`);
+}
+function finale(){
+  const rank=S.tot>=18?"Cyber Champion":S.tot>=13?"Road-ready Defender":"Rising Racer";
+  show(`<div class="big">🏆</div><h1>${S.name}</h1><h2>${rank}</h2><p>${S.tot} / 20 correct · ${S.st} / 15 stars</p><button class="btn alt" onclick="badge()">⬇ Download my badge</button><button class="btn g" onclick="menu()">Race again</button>`);
+}
+function badge(){
+  const c=document.createElement('canvas');c.width=800;c.height=1000;const x=c.getContext('2d');x.textAlign="center";
+  const cx0=400,cy=340,R=260,rank=S.tot>=18?"Cyber Champion":S.tot>=13?"Road-ready Defender":"Rising Racer";
+  const rg=x.createLinearGradient(cx0-R,cy-R,cx0+R,cy+R);rg.addColorStop(0,"#5EEAD4");rg.addColorStop(.5,"#818CF8");rg.addColorStop(1,"#FBBF24");
+  x.save();x.shadowColor="rgba(94,234,212,.55)";x.shadowBlur=45;x.lineWidth=22;x.strokeStyle=rg;x.beginPath();x.arc(cx0,cy,R,0,7);x.stroke();x.restore();
+  let g=x.createRadialGradient(cx0,cy-70,30,cx0,cy,R);g.addColorStop(0,"#1E2B44");g.addColorStop(1,"#0B1220");x.fillStyle=g;x.beginPath();x.arc(cx0,cy,R-16,0,7);x.fill();
+  x.fillStyle="#89A0B8";x.font="600 20px sans-serif";x.fillText("C Y B E R   R A C E R",cx0,cy-145);
+  x.font="150px sans-serif";x.fillText(S.tot>=16?"🏆":"🛡️",cx0,cy+45);
+  x.font="bold 48px sans-serif";x.fillStyle="#5EEAD4";x.fillText(S.tot+" / 20",cx0,cy+130);
+  x.font="600 18px sans-serif";x.fillStyle="#89A0B8";x.fillText("★ "+S.st+" / 15 STARS",cx0,cy+162);
+  const pw=560,ph=94,px=cx0-pw/2,py=cy+R+55;
+  x.save();x.shadowColor="rgba(0,0,0,.45)";x.shadowBlur=24;x.shadowOffsetY=10;x.fillStyle="#131C2B";rrx(x,px,py,pw,ph,26);x.fill();x.restore();
+  x.lineWidth=3;x.strokeStyle=rg;rrx(x,px,py,pw,ph,26);x.stroke();
+  x.font="bold 36px sans-serif";x.fillStyle="#EAF0F7";x.fillText(S.name,cx0,py+ph/2+13);
+  x.font="22px sans-serif";x.fillStyle="#89A0B8";x.fillText(rank,cx0,py+ph+48);x.font="16px sans-serif";x.fillText(new Date().toLocaleDateString(),cx0,py+ph+78);
+  const a=document.createElement('a');a.download="cyber-racer-"+S.name.replace(/[^a-z0-9]/gi,"_")+".png";a.href=c.toDataURL("image/png");a.click();
+}
+function rrx(x,a,b,w,h,r){x.beginPath();x.moveTo(a+r,b);x.arcTo(a+w,b,a+w,b+h,r);x.arcTo(a+w,b+h,a,b+h,r);x.arcTo(a,b+h,a,b,r);x.arcTo(a,b,a+w,b,r);x.closePath()}
+
+/* ---------- controls ---------- */
+const steer=d=>{if(S.mode==="drive")S.target=Math.max(-1,Math.min(1,Math.round(S.target)+d))};
+addEventListener('keydown',e=>{if(e.key==="ArrowLeft"||e.key==="a")steer(-1);if(e.key==="ArrowRight"||e.key==="d")steer(1)});
+$('L').addEventListener('pointerdown',e=>{e.preventDefault();steer(-1)});$('R').addEventListener('pointerdown',e=>{e.preventDefault();steer(1)});
+let sx=null;cv.addEventListener('pointerdown',e=>{sx=e.clientX});
+cv.addEventListener('pointerup',e=>{if(sx===null)return;const d=e.clientX-sx;if(Math.abs(d)>40)steer(d>0?1:-1);else steer(e.clientX<W/2?-1:1);sx=null});
+menu();requestAnimationFrame(loop);
+</script>
+</body>
+</html>
